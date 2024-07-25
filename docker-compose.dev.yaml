@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - base_network
+
+  web:
+     build: .
+     env_file:
+       - .env
+       - ./deploy/gunicorn/gunicorn.env
+     environment:
+       - BOT_MAIN=True
+     ports:
+       - "8000:8000"
+     command: poetry run gunicorn -k uvicorn.workers.UvicornWorker config.asgi --bind 0.0.0.0:8000
+     networks:
+       - base_network
+     depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  base_network:
+volumes:
+  postgres_data:
