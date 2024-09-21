@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def bot_lifespan():
-    from regbot.api.telegram.routers.main import router as main_router
-    from regbot.api.telegram.dialogs.main import main_window
-    from regbot.api.telegram.dialogs.crud_reg import main_window as crud_main_window
+    from regbot.telegram.routers.main import router as main_router
+    from regbot.telegram.dialogs.main import main_window
+    from regbot.telegram.dialogs.crud_reg import main_window as crud_main_window
 
     storage = MemoryStorage()
 

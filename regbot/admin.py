@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from . import models
+from regbot import models
 
 
 @admin.register(models.ReservedTime)

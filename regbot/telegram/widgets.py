@@ -16,8 +16,6 @@ logger = logging.getLogger(__name__)
 
 def date_selector(fieldname: str):
     def selector(data: dict, case: Case, dialog_manager: DialogManager):
-        logger.warning(data["date"])
-        logger.warning(data["data"]["dialog_data"].get(fieldname, []))
         return data["date"].strftime("%d/%m/%Y") in data["data"]["dialog_data"].get(
             fieldname, []
         )

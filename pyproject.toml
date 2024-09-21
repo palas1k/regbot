@@ -26,6 +26,7 @@ django-jazzmin = "^2.6.1"
 loguru = "^0.7.2"
 djangorestframework-simplejwt = "^5.3.1"
 celery = "^5.4.0"
+django-filter = "^24.3"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.3.2"

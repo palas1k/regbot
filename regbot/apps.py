@@ -3,14 +3,14 @@ import logging
 from django.apps import AppConfig
 from django.conf import settings
 
-from regbot.api.telegram.bot import bot_lifespan
+from regbot.telegram.bot import bot_lifespan
 
 logger = logging.getLogger(__name__)
 
 
 class ApiConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "regbot.api"
+    name = "regbot"
 
     def ready(self):
         if settings.BOT_MAIN:

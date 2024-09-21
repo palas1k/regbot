@@ -14,8 +14,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - base_network
 
   web:
      build: .
@@ -26,14 +24,10 @@ services:
        - BOT_MAIN=True
      ports:
        - "8000:8000"
-     command: poetry run gunicorn -k uvicorn.workers.UvicornWorker config.asgi --bind 0.0.0.0:8000
-     networks:
-       - base_network
+     command: poetry run gunicorn -w 4 -k uvicorn.workers.UvicornWorker config.asgi --bind 0.0.0.0:8000
      depends_on:
       postgres:
         condition: service_healthy
 
-networks:
-  base_network:
 volumes:
   postgres_data:

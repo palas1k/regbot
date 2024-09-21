@@ -8,7 +8,7 @@ from aiogram.filters import (
 from aiogram.types import Message
 from aiogram_dialog import DialogManager, StartMode
 
-from regbot.api.telegram.dialogs.main import MainStateGroup
+from regbot.telegram.dialogs.main import MainStateGroup
 
 logger = logging.getLogger(__name__)
 router = Router()

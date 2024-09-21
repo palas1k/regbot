@@ -32,8 +32,7 @@ THIRD_PARTY_APPS = [
 ]
 
 PROJECT_APPS = [
-    "regbot.users",
-    "regbot.api",
+    "regbot",
 ]
 
 INSTALLED_APPS = [
@@ -105,8 +104,6 @@ LANGUAGE_CODE = "ru"
 
 TIME_ZONE = "UTC"
 
-DATETIME_FORMAT = "%Y-%m-%d%H:%M:%S"
-
 USE_I18N = True
 
 USE_TZ = True
@@ -128,9 +125,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost",
     "http://localhost:8000",
     "http://localhost:3000",
-    "https://slon.born-in-july.ru",
 ]
-CSRF_TRUSTED_ORIGINS = ["https://slon.born-in-july.ru"]
+CSRF_TRUSTED_ORIGINS = [*CORS_ALLOWED_ORIGINS]
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -142,13 +138,11 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "SLON",
-    "DESCRIPTION": "Slon Bot",
+    "TITLE": "BOT",
+    "DESCRIPTION": "Reg Bot",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
-
-AUTH_USER_MODEL = "users.User"
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
@@ -188,9 +182,9 @@ BOT_MAIN = os.getenv("BOT_MAIN", "False") == "True"
 
 JAZZMIN_SETTINGS = {
     # title of the window (Will default to current_admin_site.site_title if absent or None)
-    "site_title": "SlonBot Admin",
+    "site_title": "RegBot Admin",
     # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
-    "site_header": "SlonBot",
+    "site_header": "RegBot",
     "related_modal_active": False,
     "use_google_fonts_cdn": True,
     "topmenu_links": [

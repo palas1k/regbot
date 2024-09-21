@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import Any
+from typing import Any, TypedDict
 
 from aiogram import F
 from aiogram.fsm.state import StatesGroup, State
@@ -13,16 +13,18 @@ from aiogram_dialog.widgets.kbd import (
     Button,
     Select,
     Cancel,
-    SwitchTo,
     ScrollingGroup,
 )
 from aiogram_dialog.widgets.text import Const, Format, Case
+
+from django.db.models import CharField, Value, Func, F as DjangoF
+
 from gunicorn.http import Message
 
-from regbot.api.models import ReservedTime
-from regbot.api.telegram.utils import date_reservation_time, T, error_getter
-from regbot.api.telegram.validators import PhoneNumberValidator
-from regbot.api.telegram.widgets import CustomCalendar
+from regbot.models import ReservedTime
+from regbot.telegram.utils import date_reservation_time, T, error_getter
+from regbot.telegram.validators import PhoneNumberValidator
+from regbot.telegram.widgets import CustomCalendar
 
 logger = logging.getLogger(__name__)
 
@@ -37,23 +39,8 @@ class CRUDRegStateGroup(StatesGroup):
     delete_reg = State()
 
 
-async def get_datetime_from_db(user_id: int):
-    today = datetime.date.today()
-    try:
-        res = await ReservedTime.objects.aget(tg_id=user_id, date_time__gte=today)
-        return res
-    except ReservedTime.DoesNotExist:
-        return None
-
-
-async def check_reg(
-    query: CallbackQuery, widget: Button, dialog_manager: DialogManager, **_
-):
-    res = await get_datetime_from_db(dialog_manager.event.from_user.id)
-    if res:
-        await dialog_manager.event.answer("Вы уже записаны!")
-    else:
-        await dialog_manager.start(CRUDRegStateGroup.create_reg)
+class MainWindowGetterDate(TypedDict):
+    times: list[ReservedTime]
 
 
 async def on_reservation_date_selected(
@@ -104,7 +91,6 @@ async def number_handler(
     data: T,
 ):
     dialog_manager.dialog_data["number"] = data
-    logger.warning("NUMBER", data)
     await dialog_manager.switch_to(CRUDRegStateGroup.final)
 
 
@@ -140,31 +126,52 @@ async def save_reg(
 
 
 async def reg_getter(dialog_manager: DialogManager, **_):
-    res = await get_datetime_from_db(dialog_manager.event.from_user.id)
-    if res is None:
+    today = datetime.date.today()
+    try:
+        res = [
+            reserved_time
+            async for reserved_time in ReservedTime.objects.filter(
+                tg_id=dialog_manager.event.from_user.id, date_time__gte=today
+            )
+            .annotate(
+                str_date=Func(
+                    DjangoF("date_time"),
+                    Value("DD-MM-YYYY HH24:MI"),
+                    function="to_char",
+                    output_field=CharField(),
+                )
+            )
+            .values("id", "str_date")
+        ]
+    except ReservedTime.DoesNotExist:
         await dialog_manager.event.answer("Вы не записаны!")
         await dialog_manager.done()
     else:
-        dialog_manager.dialog_data["text"] = res.date_time.strftime("%d-%m-%Y %H:%M")
-        dialog_manager.dialog_data["reg_id"] = res.pk
-        return {"text": res.date_time}
+        return MainWindowGetterDate(times=res)
+
+
+async def time_selected(
+    query: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    selected_time: str,
+):
+    dialog_manager.dialog_data["time_selected"] = selected_time
+    await dialog_manager.switch_to(CRUDRegStateGroup.delete_reg)
 
 
 async def delete_reg(
     query: CallbackQuery, widget: Button, dialog_manager: DialogManager
 ):
-    res = await ReservedTime.objects.aget(pk=dialog_manager.dialog_data["reg_id"])
+    res = await ReservedTime.objects.aget(
+        pk=dialog_manager.dialog_data["time_selected"]
+    )
     await res.adelete()
-    await query.answer("Запись отменена")
+    await dialog_manager.event.answer("Запись отменена")
     await dialog_manager.done()
 
 
 main_window = Dialog(
-    Window(
-        Format("Вы уже записаны"),
-        Cancel(Const("Назад"), id="back"),
-        state=CRUDRegStateGroup.check_reg,
-    ),
     Window(
         Const("Выберите дату:"),
         CustomCalendar(
@@ -193,7 +200,7 @@ main_window = Dialog(
             height=10,
             id="times_list_pager",
         ),
-        Cancel(Const("Назад"), id="back"),
+        Cancel(Const("Назад"), id="1back"),
         state=CRUDRegStateGroup.reservation_time,
         getter=reservation_time_getter,
     ),
@@ -211,7 +218,7 @@ main_window = Dialog(
             on_error=error,
             type_factory=PhoneNumberValidator(),
         ),
-        Cancel(Const("Назад"), id="back"),
+        Cancel(Const("Назад"), id="2back"),
         state=CRUDRegStateGroup.get_number,
         getter=getter,
     ),
@@ -220,22 +227,31 @@ main_window = Dialog(
             "Вы записываетесь на {dialog_data[reservation_date_str]} {dialog_data[reservation_time_selected]}?"
         ),
         Button(Const("Да"), on_click=save_reg, id="save_reg"),
-        Cancel(Const("Нет"), id="back"),
+        Cancel(Const("Нет"), id="3back"),
         state=CRUDRegStateGroup.final,
     ),
     Window(
-        Format("Вы записаны: {dialog_data[text]}"),
-        SwitchTo(
-            Const("Отменить запись?"), id="delete", state=CRUDRegStateGroup.delete_reg
+        Const("Ваши записи\n" "Если хотите отменить, нажмите на запись"),
+        ScrollingGroup(
+            Select(
+                Format("{item[str_date]}"),
+                id="reserved_times",
+                item_id_getter=lambda item: item["id"],
+                items="times",
+                on_click=time_selected,
+            ),
+            width=1,
+            height=10,
+            id="times_list_pager",
         ),
-        Cancel(Const("Назад"), id="back"),
+        Cancel(Const("Назад"), id="4back"),
         getter=reg_getter,
         state=CRUDRegStateGroup.get_reg,
     ),
     Window(
         Const("Вы уверены что хотите отменить запись?"),
         Button(Const("Да"), on_click=delete_reg, id="delete_reg"),
-        Cancel(Const("Нет"), id="back"),
+        Cancel(Const("Нет"), id="5back"),
         state=CRUDRegStateGroup.delete_reg,
     ),
 )
